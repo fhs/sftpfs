@@ -1,0 +1,20 @@
+CONTACT
+
+	Fazlul Shahriar <fshahriar@gmail.com>
+
+
+Installing OpenSSH (if ssh1 doesn't work)
+
+	# if you don't have the contrib tools
+ 	/n/sources/contrib/fgb/root/rc/bin/contrib/install fgb/contrib
+ 	
+	contrib/install fgb/openssl
+	contrib/install fgb/openssh
+
+
+BUGS
+
+	openssh server bugs:
+	
+	READDIR gives 0 entries if the directory has no executable permission,
+	but is readable.

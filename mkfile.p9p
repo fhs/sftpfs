@@ -1,0 +1,20 @@
+<$PLAN9/src/mkhdr
+
+TARG=\
+	sftpfs\
+
+OFILES=\
+	fxp.$O\
+	util.$O\
+	map.$O\
+	sftpfs.$O\
+
+HFILES=\
+	fxp.h\
+
+BIN=/$objtype/bin
+
+<$PLAN9/src/mkone
+
+install:V:
+	cp $TARG.man /sys/man/4/$TARG
