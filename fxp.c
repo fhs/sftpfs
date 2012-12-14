@@ -130,7 +130,7 @@ static int debug = 0;
 typedef struct Conn Conn;
 struct Conn{
 	char	*host;
-	int		sshver;
+	char		sshver;
 	char	*serverpath;
 	Map		*map;
 	
@@ -470,14 +470,19 @@ sshproc(void*)
 	dup(p[1], 1);
 	close(p[1]);
 	
-	if(conn.sshver == 1)
-		procexecl(nil, "/bin/ssh", "ssh", "-P", "-m",
-			"-I", "-f", conn.host,
-			conn.serverpath, nil);
-	else
-		procexecl(nil, "/bin/openssh/ssh",
-			"ssh", "-x", "-a", "-oClearAllForwardings=yes",
-			"-2", conn.host, "-s", "sftp", nil);
+	switch(conn.sshver){
+	case '1':
+		procexecl(nil, "/bin/ssh1", "ssh1", "-P", "-m", "-I", "-f",
+			conn.host, conn.serverpath, nil);
+		break;
+	case '2':
+		procexecl(nil, "/bin/ssh", "ssh", "-m", "-i", "-C", "-s", "sftp", conn.host, nil);
+		break;
+	case 'o':
+		procexecl(nil, "/bin/openssh/ssh", "ssh", "-x", "-a",
+			"-oClearAllForwardings=yes", "-2", conn.host, "-s", "sftp", nil);
+		break;
+	}
 	sysfatal("exec ssh: %r");
 }
 
@@ -507,6 +512,8 @@ serverproc(void*)
 		if(readn(fd, buf, 4) != 4)
 			goto sendreply;
 		get4(&n, buf);
+		if(n >= sizeof(conn.buf))
+			sysfatal("reply silly big (%d > %d)\n", n, sizeof(conn.buf));
 		if(debug)
 			fprint(2, "response length: %d\n", n);
 		if(readn(fd, buf+4, n) != n)
@@ -1117,7 +1124,7 @@ fxpversion(int ver)
 }
 
 int
-fxpinit(char *host, int ver, char *path)
+fxpinit(char *host, char ver, char *path)
 {
 	int *p, n;
 	

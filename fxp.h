@@ -66,7 +66,7 @@ struct String{
 	uchar	*s;
 };
 
-extern	int	fxpinit(char*,int,char*);
+extern	int	fxpinit(char*,char,char*);
 extern	void	fxpterm(void);
 extern	FHandle*	fxpopendir(char*);
 extern	int	fxpclose(FHandle*);

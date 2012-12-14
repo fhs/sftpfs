@@ -10,28 +10,14 @@ struct FAux {
 	int	ndir;
 };
 
-static Rune*
-utf2runes(char *utf)
-{
-	int nr, i;
-	Rune *r;
-	char *s;
-	
-	nr = utflen(utf)+1;
-	r = emalloc9p(nr*sizeof(Rune));
-	s = utf;
-	for(i = 0; i < nr; i++)
-		s += chartorune(&r[i], s);
-	r[nr-1] = 0;
-	return r;
-}
+static ulong Seed;
 
 /*
  * http://9fans.net/archive/2003/05/56
  * http://9fans.net/archive/2003/05/57
  */
 static uvlong
-hash(Rune *p, ulong seed)
+hash(char *p, char *n, ulong seed)
 {
 	ulong x;
 	uvlong xx;
@@ -39,6 +25,11 @@ hash(Rune *p, ulong seed)
 	x = seed;
 	while(*p)
 		x = x*1103515245 + 12345 + *p++;
+	if(n){
+		x = x*1103515245 + 12345 + '/';		/* for neatness only */
+		while(*n)
+			x = x*1103515245 + 12345 + *n++;
+	}
 	xx = x;
 	xx <<= 32;
 	xx |= seed;
@@ -46,20 +37,11 @@ hash(Rune *p, ulong seed)
 }
 
 static Qid
-getqid(char *path, Dir *d)
+getqid(char *path, char *name, Dir *d)
 {
-	char *p;
-	Rune *r;
 	Qid q;
 	
-	path = estrdup9p(path);
-	p = cleanname(path);
-	r = utf2runes(p);
-	free(path);
-	/* this isn't quiet right.
-		path shouldn't change on every modification */
-	q.path = hash(r, d->mtime);
-	free(r);
+	q.path = hash(path, name, Seed);
 	q.type = d->mode&DMDIR ? QTDIR : QTFILE;
 	q.vers = d->mtime;
 	return q;
@@ -103,7 +85,7 @@ fsattach(Req *r)
 		responderror(r);
 		return;
 	}
-	r->fid->qid = getqid("/", d);
+	r->fid->qid = getqid("/", "", d);
 	freedir(d);
 	r->ofcall.qid = r->fid->qid;
 	fa = newfaux("/");
@@ -147,7 +129,7 @@ fswalk1(Fid *fid, char *name, Qid *qid)
 	d = fxpstat1(fa->path, &err);
 	if(d == nil)
 		return err;
-	fid->qid = getqid(fa->path, d);
+	fid->qid = getqid(fa->path, "", d);
 	*qid = fid->qid;
 	freedir(d);
 	
@@ -239,7 +221,7 @@ fscreate(Req *r)
 		responderror(r);
 		return;
 	}
-	r->fid->qid = getqid(fa->path, d);
+	r->fid->qid = getqid(fa->path, "", d);
 	freedir(d);
 	r->ofcall.qid = r->fid->qid;
 	r->fid->aux = fa;
@@ -274,7 +256,7 @@ getdirent(int n, Dir *d, void *aux)
 	if(n >= fa->ndir)
 		return -1;
 	e = fa->dir[n];
-	d->qid = getqid(fa->path, e);
+	d->qid = getqid(fa->path, e->name, e);
 	d->mode = e->mode;
 	d->atime = e->atime;
 	d->mtime = e->mtime;
@@ -370,7 +352,7 @@ fsstat(Req *r)
 		responderror(r);
 		return;
 	}
-	r->d.qid = getqid(fa->path, d);
+	r->d.qid = getqid(fa->path, "", d);
 	r->d.mode = d->mode;
 	r->d.atime = d->atime;
 	r->d.mtime = d->mtime;
@@ -450,7 +432,7 @@ static Srv fs = {
 void
 usage(void)
 {
-	fprint(2, "usage: sftpfs [-1DU] [-m mountpoint] [-p serverpath ] [-s srvname] [-u passwd group] [user@]hostname\n");
+	fprint(2, "usage: sftpfs [-12oDU] [-m mountpoint] [-p serverpath ] [-s srvname] [-u passwd group] [user@]hostname\n");
 	threadexitsall("usage");
 }
 
@@ -461,20 +443,21 @@ static char *host;
 static char *mntpt;
 static char *serverpath = "/usr/lib/sftp-server";
 static int bigu;
-static int sshver = 2;
+static char sshver = '2';
 
 void
 threadmain(int argc, char **argv)
 {
 	char mpath[50], ppath[50], gpath[50];
-	
+
 	ARGBEGIN{
 	default:
 		usage();
 		break;
 	case '1':
 	case '2':
-		sshver = ARGC()-'0';
+	case 'o':
+		sshver = ARGC();
 		break;
 	case 'D':
 		chatty9p++;
@@ -514,6 +497,13 @@ threadmain(int argc, char **argv)
 		snprint(gpath, sizeof(gpath), "%s/etc/group", mntpt);
 		gfile = gpath;
 	}
+
+	/*
+	 * try to ensure two mounts of the same host get the same qids,
+	 * but two mounts of similar hosts get different ones.
+	 */
+	Seed = hash(host, nil, 0);
+
 	threadpostmountsrv(&fs, srvname, mntpt, MREPL|MCREATE);
 	
 	if(gfile != nil && pfile != nil)

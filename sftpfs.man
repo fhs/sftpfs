@@ -4,7 +4,7 @@ sftpfs \- SSH File Transfer Protocol (SFTP) file system
 .SH SYNOPSIS
 .B sftpfs
 [
-.B -1DU
+.B -12oDU
 ] [
 .B -m
 .I mountpoint
@@ -31,7 +31,7 @@ at port 22, and presents at
 .BI /n/ host \fR)
 the root file tree of
 .IR host .
-
+.LP
 If the
 .B -s
 option is given, the file system is posted as
@@ -41,18 +41,19 @@ It will try to login as
 if given.  Otherwise, login is attempted using the user name from
 .BR /dev/user .
 Authentication is entirely the reponsibility of the SSH client.
-
-If the
-.B -1
-flag is given, SSH version 1 (SSH1) is used.  Otherwise version 2 is
-used.
+.LP
+The
+.B -1 -2 -o
+flags control whether the Bell Lab's ssh client,
+Coraid's ssh client, or the OpenSSH client respectively are
+used for the session.
 .I Serverpath
 (default
 .BR /usr/lib/sftp-server )
 specifies the path of the SFTP server used in SSH1.  A path without
 slash character is looked up in the executable search path.  Some
 common places for SFTP server to live are:
-
+.LP
 .RS
 .EX
 /usr/lib/sftp-server
@@ -62,7 +63,7 @@ common places for SFTP server to live are:
 /usr/lib/ssh/sftp-server
 .EE
 .RE
-
+.LP
 .I Passwd
 and
 .I group
@@ -79,7 +80,7 @@ and
 as the Unix password and group file. It overrides the
 .B -u
 flag.
-
+.LP
 The
 .B -D
 flag causes a transcript of the 9P conversation to be written to
@@ -88,5 +89,6 @@ standard error.
 .B /sys/src/cmd/sftpfs
 .SH "SEE ALSO"
 .IR ssh (1),
+.IR ssh2 (1),
 .IR srvssh (4),
 .IR openssh (1)
